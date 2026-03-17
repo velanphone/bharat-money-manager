@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Settings as SettingsIcon, User, Shield, Info } from 'lucide-react';
+import CategoryManager from '../components/CategoryManager';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -140,6 +141,9 @@ export default function Settings() {
             </div>
           </form>
         </section>
+
+        {/* Category & Sub-Category Management */}
+        <CategoryManager />
 
         {/* Security Section (Placeholders for future use) */}
         <section className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
