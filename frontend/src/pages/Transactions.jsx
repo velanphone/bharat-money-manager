@@ -95,23 +95,15 @@ export default function Transactions() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <nav className="bg-white border-b border-zinc-200 px-6 py-4 flex items-center shadow-sm">
-        <button 
-          onClick={() => navigate('/')}
-          className="p-2 -ml-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-500 mr-2"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-zinc-900 to-zinc-600">
-          Transactions
-        </h1>
-      </nav>
+    <div className="animate-in fade-in duration-500 pb-20 md:pb-0">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Transactions</h2>
+        <p className="text-zinc-500 mt-1">Manage all your income and expenses.</p>
+      </div>
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl font-bold tracking-tight">All Transactions</h2>
-          <button 
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl font-bold tracking-tight">All Transactions</h2>
+        <button 
             onClick={() => setShowForm(!showForm)}
             className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-md flex items-center gap-2"
           >
@@ -214,8 +206,7 @@ export default function Transactions() {
               ))}
             </div>
           )}
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
