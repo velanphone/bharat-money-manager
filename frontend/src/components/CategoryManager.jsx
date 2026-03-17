@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, ChevronDown, ChevronRight, Tag, FolderTree, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Tag, FolderTree, X, Pencil, Check } from 'lucide-react';
 
 export default function CategoryManager() {
   const { user } = useAuth();
@@ -17,8 +17,14 @@ export default function CategoryManager() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Expand/collapse state for parent categories
+  // Expand/collapse state
   const [expanded, setExpanded] = useState({});
+
+  // Edit state: { id, name, icon }
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editIcon, setEditIcon] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -80,6 +86,7 @@ export default function CategoryManager() {
     try {
       const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) throw error;
+      if (editingId === id) setEditingId(null);
       fetchCategories();
     } catch (err) {
       console.error(err);
@@ -87,22 +94,99 @@ export default function CategoryManager() {
     }
   };
 
+  const startEdit = (cat) => {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+    setEditIcon(cat.icon || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditIcon('');
+  };
+
+  const saveEdit = async (id) => {
+    if (!editName.trim()) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: editName.trim(), icon: editIcon || null })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setEditingId(null);
+      setMessage('Category updated!');
+      setTimeout(() => setMessage(''), 3000);
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      setMessage('Error: ' + err.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const toggleExpand = (id) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Separate into parent categories (no parent_id) and sub-categories
   const parentCategories = categories.filter(c => !c.parent_id);
   const getChildren = (parentId) => categories.filter(c => c.parent_id === parentId);
 
-  // Split by type
   const incomeCategories = parentCategories.filter(c => c.type === 'income');
   const expenseCategories = parentCategories.filter(c => c.type === 'expense');
+
+  const renderEditRow = (cat, isChild = false) => (
+    <div className={`flex items-center gap-2 ${isChild ? 'p-2.5' : 'p-3'} bg-brand-50/50 rounded-xl border border-brand-200`}>
+      <input
+        type="text"
+        value={editIcon}
+        onChange={(e) => setEditIcon(e.target.value)}
+        placeholder="🏷️"
+        maxLength={4}
+        className={`${isChild ? 'w-8 h-8 text-xs' : 'w-9 h-9 text-sm'} text-center bg-white border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 flex-shrink-0`}
+      />
+      <input
+        type="text"
+        value={editName}
+        onChange={(e) => setEditName(e.target.value)}
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') saveEdit(cat.id);
+          if (e.key === 'Escape') cancelEdit();
+        }}
+        className={`flex-1 bg-white border border-zinc-300 rounded-lg px-3 ${isChild ? 'py-1.5 text-sm' : 'py-2'} text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500`}
+      />
+      <button
+        onClick={() => saveEdit(cat.id)}
+        disabled={editSaving}
+        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition disabled:opacity-50"
+        title="Save"
+      >
+        <Check className={`${isChild ? 'w-4 h-4' : 'w-5 h-5'}`} />
+      </button>
+      <button
+        onClick={cancelEdit}
+        className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg transition"
+        title="Cancel"
+      >
+        <X className={`${isChild ? 'w-4 h-4' : 'w-5 h-5'}`} />
+      </button>
+    </div>
+  );
 
   const renderCategoryItem = (cat) => {
     const children = getChildren(cat.id);
     const hasChildren = children.length > 0;
     const isExpanded = expanded[cat.id];
+    const isEditing = editingId === cat.id;
+
+    if (isEditing) {
+      return <div key={cat.id}>{renderEditRow(cat)}</div>;
+    }
 
     return (
       <div key={cat.id}>
@@ -127,33 +211,59 @@ export default function CategoryManager() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => handleDelete(cat.id)}
-            className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 focus:opacity-100"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+            <button
+              onClick={() => startEdit(cat)}
+              className="p-2 text-zinc-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition"
+              title="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(cat.id)}
+              className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
+              title="Delete"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         {hasChildren && isExpanded && (
           <div className="ml-8 pl-4 border-l-2 border-zinc-100 space-y-0.5">
-            {children.map(child => (
-              <div key={child.id} className="flex items-center justify-between p-2.5 hover:bg-zinc-50 rounded-xl transition-colors group">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs flex-shrink-0 ${
-                    child.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {child.icon || <Tag className="w-3 h-3" />}
+            {children.map(child => {
+              const isChildEditing = editingId === child.id;
+              if (isChildEditing) {
+                return <div key={child.id}>{renderEditRow(child, true)}</div>;
+              }
+              return (
+                <div key={child.id} className="flex items-center justify-between p-2.5 hover:bg-zinc-50 rounded-xl transition-colors group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs flex-shrink-0 ${
+                      child.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                    }`}>
+                      {child.icon || <Tag className="w-3 h-3" />}
+                    </div>
+                    <span className="text-sm text-zinc-700 truncate">{child.name}</span>
                   </div>
-                  <span className="text-sm text-zinc-700 truncate">{child.name}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                    <button
+                      onClick={() => startEdit(child)}
+                      className="p-1.5 text-zinc-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition"
+                      title="Edit"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(child.id)}
+                      className="p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(child.id)}
-                  className="p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 focus:opacity-100"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -190,7 +300,6 @@ export default function CategoryManager() {
         </button>
       </div>
 
-      {/* Success/Error message */}
       {message && (
         <div className={`mx-6 mt-4 p-3 rounded-xl text-sm font-medium ${
           message.includes('Error') ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
@@ -199,7 +308,6 @@ export default function CategoryManager() {
         </div>
       )}
 
-      {/* Add Category Form */}
       {showForm && (
         <form onSubmit={handleAdd} className="p-6 border-b border-zinc-100 bg-zinc-50/50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -271,7 +379,6 @@ export default function CategoryManager() {
         </form>
       )}
 
-      {/* Category List */}
       <div className="p-6">
         {loading ? (
           <p className="text-zinc-400 text-sm text-center py-4">Loading categories...</p>
